@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="color-scheme" content="dark">
+  <title>RefundTrail — Track Your Refunds</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #101c2e;
+      color: #edf4ff;
+      font: 16px system-ui, sans-serif;
+    }
+
+    main {
+      max-width: 780px;
+      margin: auto;
+      padding: 20px;
+    }
+
+    header {
+      padding: 20px 0;
+    }
+
+    h1 {
+      margin: 6px 0;
+      font-size: 38px;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    p,
+    small {
+      line-height: 1.6;
+    }
+
+    p {
+      color: #c7d4e7;
+    }
+
+    .card,
+    article {
+      margin: 18px 0;
+      padding: 20px;
+      border: 1px solid #3b506f;
+      border-radius: 16px;
+      background: #1c2e48;
+    }
+
+    .stats {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .stats > div {
+      flex: 1;
+      min-width: 150px;
+      padding: 18px;
+      border-radius: 12px;
+      background: #1c2e48;
+    }
+
+    .stats strong {
+      display: block;
+      margin-top: 8px;
+      color: #8ce3ce;
+      font-size: 28px;
+    }
+
+    label {
+      display: block;
+      margin: 14px 0;
+    }
+
+    input,
+    textarea,
+    select {
+      display: block;
+      width: 100%;
+      margin-top: 7px;
+      padding: 12px;
+      border: 1px solid #8397b3;
+      border-radius: 9px;
+      background: #101c2e;
+      color: #edf4ff;
+      font: inherit;
+    }
+
+    textarea {
+      min-height: 180px;
+      resize: vertical;
+    }
+
+    button {
+      margin: 5px 5px 5px 0;
+      padding: 12px 16px;
+      border: 0;
+      border-radius: 9px;
+      background: #8ce3ce;
+      color: #102132;
+      font: inherit;
+      cursor: pointer;
+    }
+
+    button.secondary {
+      background: #36516f;
+      color: white;
+    }
+
+    button.danger {
+      background: #784451;
+      color: white;
+    }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    textarea:focus-visible,
+    summary:focus-visible {
+      outline: 3px solid #ffda86;
+      outline-offset: 3px;
+    }
+
+    summary {
+      padding: 14px 0;
+      cursor: pointer;
+    }
+
+    #notice {
+      padding: 12px;
+      border-radius: 10px;
+      background: #293e58;
+      color: #ffe1a0;
+    }
+
+    #notice:empty {
+      display: none;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 5px 9px;
+      border-radius: 7px;
+      background: #354e70;
+      font-size: 14px;
+    }
+
+    .muted {
+      color: #b9c9df;
+    }
+
+    [hidden] {
+      display: none !important;
+    }
+
+    @media (max-width: 480px) {
+      main {
+        padding: 15px;
+      }
+
+      .card,
+      article {
+        padding: 16px;
+      }
+
+      h1 {
+        font-size: 32px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <main>
+    <header>
+      <small class="muted">LOCAL-FIRST PROTOTYPE · USD</small>
+      <h1>RefundTrail</h1>
+      <p>You returned it. Follow through until your money is back.</p>
+    </header>
+
+    <p id="notice" role="status" aria-live="polite"></p>
+
+    <div class="stats">
+      <div>
+        Pending refunds
+        <strong id="pendingTotal">$0.00</strong>
+      </div>
+      <div>
+        Confirmed received
+        <strong id="receivedTotal">$0.00</strong>
+      </div>
+    </div>
+
+    <section class="card">
+      <h2 id="formHeading">Add a refund</h2>
+
+      <form id="caseForm">
+        <label>
+          Store or company
+          <input
+            name="store"
+            type="text"
+            maxlength="100"
+            autocomplete="off"
+            required
+          >
+        </label>
+
+        <label>
+          Refund amount in USD
+          <input
+            name="amount"
+            type="number"
+            min="0.01"
+            max="1000000000"
+            step="0.01"
+            inputmode="decimal"
+            required
+          >
+        </label>
+
+        <label>
+          Your next follow-up date
+          <input name="date" type="date" required>
+        </label>
+
+        <button id="saveButton" type="submit">Save case</button>
+
+        <button
+          id="cancelEdit"
+          class="secondary"
+          type="button"
+          hidden
+        >
+          Cancel editing
+        </button>
+      </form>
+    </section>
+
+    <section class="card">
+      <h2>Your refund cases</h2>
+
+      <label>
+        Show
+        <select id="filter">
+          <option value="all">All cases</option>
+          <option value="pending">Pending</option>
+          <option value="received">Received</option>
+          <option value="due">Follow-up due</option>
+        </select>
+      </label>
+
+      <div id="caseList"></div>
+    </section>
+
+    <section class="card">
+      <h2>Backups</h2>
+
+      <button id="exportButton" type="button">Export backup</button>
+
+      <button
+        id="restoreButton"
+        type="button"
+        class="secondary"
+      >
+        Restore backup
+      </button>
+
+      <input
+        id="backupFile"
+        type="file"
+        accept=".json,application/json"
+        hidden
+      >
+
+      <p>
+        Restoring a backup replaces the currently loaded cases after
+        confirmation. Export your current records first if you need
+        to keep them.
+      </p>
+    </section>
+
+    <section class="card">
+      <h2>Privacy and limitations</h2>
+
+      <p>
+        Use fictional information during testing. Records and edited
+        drafts are stored only in this browser, without encryption or
+        account sync. Clearing browser data can erase them. Keep
+        exported backups.
+      </p>
+
+      <p>
+        Do not enter passwords, payment-card numbers, bank details,
+        or other sensitive information.
+      </p>
+
+      <p>
+        This app does not access bank accounts, send messages,
+        verify refund eligibility, or deliver background notifications.
+        Follow-up dates are your reminders, not legal deadlines.
+        Marking a refund received is your own confirmation.
+      </p>
+    </section>
+  </main>
+
+  <script>
+    "use strict";
+
+    const STORAGE_KEY = "refundtrail-phone-v2";
+    const MAX_CASES = 1000;
+    const MAX_BACKUP_BYTES = 5000000;
+
+    const get = id => document.getElementById(id);
+
+    let cases = [];
+    let editingId = null;
+    let idCounter = 0;
+    let storageLoadFailed = false;
+
+    const currency = new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD"
+    });
+
+    function money(amount) {
+      return currency.format(amount);
+    }
+
+    function notify(message) {
+      get("notice").textContent = message;
+    }
+
+    function newId() {
+      idCounter += 1;
+
+      return (
+        "case-" +
+        Date.now().toString(36) +
+        "-" +
+        idCounter.toString(36) +
+        "-" +
+        Math.random().toString(36).slice(2)
+      );
+    }
+
+    function today() {
+      const date = new Date();
+
+      return (
+        date.getFullYear() +
+        "-" +
+        String(date.getMonth() + 1).padStart(2, "0") +
+        "-" +
+        String(date.getDate()).padStart(2, "0")
+      );
+    }
+
+    function isValidDate(value) {
+      if (
+        typeof value !== "string" ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(value)
+      ) {
+        return false;
+      }
+
+      const date = new Date(value + "T00:00:00Z");
+
+      return (
+        !Number.isNaN(date.getTime()) &&
+        date.toISOString().slice(0, 10) === value
+      );
+    }
+
+    function validateCases(value) {
+      if (!Array.isArray(value) || value.length > MAX_CASES) {
+        throw new Error("Invalid case list or too many cases.");
+      }
+
+      return value.map((item, index) => {
+        if (
+          !item ||
+          typeof item.store !== "string" ||
+          !item.store.trim() ||
+          item.store.length > 100
+        ) {
+          throw new Error("Invalid store in case " + (index + 1) + ".");
+        }
+
+        if (
+          typeof item.amount !== "number" ||
+          !Number.isFinite(item.amount) ||
+          item.amount <= 0 ||
+          item.amount > 1000000000
+        ) {
+          throw new Error("Invalid refund amount.");
+        }
+
+        if (!isValidDate(item.date)) {
+          throw new Error("Invalid follow-up date.");
+        }
+
+        if (typeof item.done !== "boolean") {
+          throw new Error("Invalid case status.");
+        }
+
+        if (
+          item.draft !== undefined &&
+          (
+            typeof item.draft !== "string" ||
+            item.draft.length > 10000
+          )
+        ) {
+          throw new Error("Invalid draft message.");
+        }
+
+        const clean = {
+          id: newId(),
+          store: item.store.trim(),
+          amount: item.amount,
+          date: item.date,
+          done: item.done
+        };
+
+        if (item.draft !== undefined) {
+          clean.draft = item.draft;
+        }
+
+        return clean;
+      });
+    }
+
+    function loadCases() {
+      try {
+        const saved = localStorage.getItem(STORAGE_KEY);
+        cases = validateCases(JSON.parse(saved || "[]"));
+
+        notify(
+          "Ready. Records stay in this browser. Export backups regularly."
+        );
+      } catch (error) {
+        storageLoadFailed = true;
+
+        notify(
+          "Existing storage could not be read. It has not been changed. " +
+          "Restore a backup, or export any cases you create in this session."
+        );
+      }
+    }
+
+    function persist() {
+      if (storageLoadFailed) {
+        notify(
+          "Automatic saving is paused to protect unreadable existing data. " +
+          "Export this session or restore a valid backup."
+        );
+
+        return false;
+      }
+
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(cases));
+
+        notify("Saved locally. Export backups regularly.");
+
+        return true;
+      } catch (error) {
+        notify(
+          "Browser saving failed. Export a backup before leaving this page."
+        );
+
+        return false;
+      }
+    }
+
+    function makeElement(tag, text, parent) {
+      const element = document.createElement(tag);
+      element.textContent = text;
+      parent.append(element);
+
+      return element;
+    }
+
+    function makeButton(parent, label, action, className) {
+      const button = makeElement("button", label, parent);
+      button.type = "button";
+      button.className = className || "secondary";
+      button.onclick = action;
+
+      return button;
+    }
+
+    function resetForm() {
+      editingId = null;
+      get("caseForm").reset();
+      get("formHeading").textContent = "Add a refund";
+      get("saveButton").textContent = "Save case";
+      get("cancelEdit").hidden = true;
+    }
+
+    function defaultDraft(item) {
+      return (
+        "Hello " + item.store + " support,\n\n" +
+        "I am following up on a refund of " + money(item.amount) + ". " +
+        "Please confirm its status, expected processing time, and " +
+        "whether you need any further information.\n\n" +
+        "Thank you."
+      );
+    }
+
+    function beginEdit(item) {
+      editingId = item.id;
+
+      const form = get("caseForm");
+
+      form.elements.store.value = item.store;
+      form.elements.amount.value = item.amount;
+      form.elements.date.value = item.date;
+
+      get("formHeading").textContent = "Edit refund";
+      get("saveButton").textContent = "Save changes";
+      get("cancelEdit").hidden = false;
+
+      form.scrollIntoView({ behavior: "smooth" });
+      form.elements.store.focus();
+    }
+
+    function deleteCase(item) {
+      const confirmed = window.confirm(
+        "Permanently delete this refund case from this browser? " +
+        "Previously exported backups will not be changed."
+      );
+
+      if (!confirmed) return;
+
+      cases = cases.filter(current => current.id !== item.id);
+
+      if (editingId === item.id) {
+        resetForm();
+      }
+
+      persist();
+      render();
+    }
+
+    function render() {
+      const list = get("caseList");
+      list.replaceChildren();
+
+      let pendingCents = 0;
+      let receivedCents = 0;
+
+      cases.forEach(item => {
+        const cents = Math.round(item.amount * 100);
+
+        if (item.done) {
+          receivedCents += cents;
+        } else {
+          pendingCents += cents;
+        }
+      });
+
+      get("pendingTotal").textContent = money(pendingCents / 100);
+      get("receivedTotal").textContent = money(receivedCents / 100);
+
+      const filter = get("filter").value;
+
+      const visible = cases.filter(item => {
+        if (filter === "pending") return !item.done;
+        if (filter === "received") return item.done;
+        if (filter === "due") {
+          return !item.done && item.date <= today();
+        }
+
+        return true;
+      });
+
+      visible.sort((a, b) => a.date.localeCompare(b.date));
+
+      if (!visible.length) {
+        makeElement("p", "No cases in this view.", list);
+        return;
+      }
+
+      visible.forEach(item => {
+        const article = makeElement("article", "", list);
+
+        makeElement(
+          "h3",
+          item.store + " — " + money(item.amount),
+          article
+        );
+
+        let status = item.done ? "Received" : "Pending";
+
+        if (!item.done && item.date <= today()) {
+          status = "Follow-up due";
+        }
+
+        const badge = makeElement("span", status, article);
+        badge.className = "badge";
+
+        makeElement(
+          "p",
+          "Follow-up date: " + item.date,
+          article
+        );
+
+        makeButton(
+          article,
+          item.done ? "Reopen" : "Confirm received",
+          () => {
+            item.done = !item.done;
+            persist();
+            render();
+          }
+        );
+
+        makeButton(article, "Edit case", () => beginEdit(item));
+
+        makeButton(
+          article,
+          "Delete",
+          () => deleteCase(item),
+          "danger"
+        );
+
+        const details = makeElement("details", "", article);
+
+        makeElement("summary", "Follow-up draft", details);
+
+        const draftInput = makeElement("textarea", "", details);
+        draftInput.maxLength = 10000;
+
+        draftInput.setAttribute(
+          "aria-label",
+          "Editable follow-up draft for " + item.store
+        );
+
+        draftInput.value =
+          item.draft === undefined ? defaultDraft(item) : item.draft;
+
+        draftInput.oninput = () => {
+          item.draft = draftInput.value;
+          persist();
+        };
+
+        makeElement(
+          "small",
+          "Edits save locally. Nothing is sent automatically. " +
+          "Saved drafts are not rewritten when you change case details.",
+          details
+        );
+
+        makeButton(details, "Copy draft", async () => {
+          try {
+            await navigator.clipboard.writeText(draftInput.value);
+
+            notify(
+              "Draft copied. Review it before sending through your own app."
+            );
+          } catch (error) {
+            draftInput.focus();
+            draftInput.select();
+
+            notify(
+              "Use your phone's Copy command on the selected draft."
+            );
+          }
+        });
+
+        makeButton(details, "Reset draft", () => {
+          if (!window.confirm("Replace your edited draft with a fresh template?")) {
+            return;
+          }
+
+          delete item.draft;
+          draftInput.value = defaultDraft(item);
+          persist();
+        });
+      });
+    }
+
+    get("caseForm").onsubmit = event => {
+      event.preventDefault();
+
+      try {
+        const formData = new FormData(event.target);
+        const existing = cases.find(item => item.id === editingId);
+
+        if (editingId !== null && !existing) {
+          throw new Error("That case no longer exists. Cancel editing.");
+        }
+
+        const candidate = {
+          store: formData.get("store").trim(),
+          amount: Number(formData.get("amount")),
+          date: formData.get("date"),
+          done: existing ? existing.done : false
+        };
+
+        if (existing && existing.draft !== undefined) {
+          candidate.draft = existing.draft;
+        }
+
+        const checked = validateCases([candidate])[0];
+
+        if (existing) {
+          checked.id = existing.id;
+
+          cases = cases.map(item =>
+            item.id === existing.id ? checked : item
+          );
+        } else {
+          if (cases.length >= MAX_CASES) {
+            throw new Error("The limit is 1,000 cases.");
+          }
+
+          cases.push(checked);
+        }
+
+        persist();
+        resetForm();
+        render();
+      } catch (error) {
+        notify(error.message);
+      }
+    };
+
+    get("cancelEdit").onclick = resetForm;
+    get("filter").onchange = render;
+
+    get("exportButton").onclick = () => {
+      try {
+        const backup = {
+          version: 2,
+          rows: cases
+        };
+
+        const blob = new Blob(
+          [JSON.stringify(backup, null, 2)],
+          { type: "application/json" }
+        );
+
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+
+        link.href = url;
+        link.download = "refundtrail-backup.json";
+
+        document.body.append(link);
+        link.click();
+        link.remove();
+
+        setTimeout(() => URL.revokeObjectURL(url), 2000);
+
+        notify(
+          "Backup download requested. Check your browser's downloads."
+        );
+      } catch (error) {
+        notify("Backup export failed: " + error.message);
+      }
+    };
+
+    get("restoreButton").onclick = () => {
+      get("backupFile").click();
+    };
+
+    get("backupFile").onchange = async event => {
+      try {
+        const file = event.target.files[0];
+
+        if (!file) return;
+
+        if (file.size > MAX_BACKUP_BYTES) {
+          throw new Error("Backup is too large. Maximum size is 5 MB.");
+        }
+
+        const backup = JSON.parse(await file.text());
+
+        if (!backup || backup.version !== 2) {
+          throw new Error("Unsupported backup version.");
+        }
+
+        const restored = validateCases(backup.rows);
+
+        const confirmed = window.confirm(
+          "Replace your current " + cases.length + " cases with " +
+          restored.length + " backup cases? " +
+          "Export your current records first if you need to keep them."
+        );
+
+        if (!confirmed) return;
+
+        cases = restored;
+        storageLoadFailed = false;
+
+        resetForm();
+        persist();
+        render();
+      } catch (error) {
+        notify(
+          "Restore rejected. Current cases are unchanged. " +
+          error.message
+        );
+      } finally {
+        event.target.value = "";
+      }
+    };
+
+    loadCases();
+    render();
+  </script>
+</body>
+</html>
